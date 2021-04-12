@@ -1,0 +1,86 @@
+version: "3.7"
+services: 
+    php:
+        container_name: "${PROJECT}-php"
+        build: 
+            context: .
+            dockerfile: ./docker/php/Dockerfile
+            # args:
+            #     - WITH_XDEBUG=true
+        # env_file: 
+        #     - .env
+        working_dir: /var/www/html
+        volumes: 
+            - ./src:/var/www/html
+            # - ./docker/php-apache/custom.ini:/usr/local/etc/php/conf.d/custom.ini
+            # - ./docker/php-apache/sites-available:/etc/apache2/sites-available
+        networks:
+            - app-network
+    web:
+        container_name: "${PROJECT}-web"
+        build: 
+            context: .
+            dockerfile: ./docker/web/Dockerfile
+        working_dir: /var/www/html
+        volumes:
+            - ./src:/var/www/html
+            # - ./src/public:/var/www/html/public
+        depends_on:
+            - php
+        networks:
+            - app-network
+        ports: 
+            - 8080:80
+    mysql:
+        container_name: "${PROJECT}-db"
+        image: mysql:5.7
+        env_file: 
+            - .env
+        command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci','--default-authentication-plugin=mysql_native_password']
+        restart: unless-stopped
+        volumes: 
+            - /var/lib/mysql
+            - ./docker/mysql/logs:/var/log/mysql
+            - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/mysql-init.sql
+        environment: 
+            MYSQL_DATABASE: "${MYSQL_DATABASE}"
+            MYSQL_USER: "${MYSQL_USER}"
+            MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+        ports: 
+            - 3306:3306
+        networks:
+            - app-network
+    # ach-redis:
+    #     container_name: ach-redis-container
+    #     image: redis:6.0-rc4-alpine
+    #     volumes:
+    #         - /data
+    #     restart: unless-stopped
+    # ach-phpmyadmin:
+    #     container_name: ach-phpmyadmin-container
+    #     image: phpmyadmin/phpmyadmin
+    #     # volumes:
+    #         # - ./config/common/conf/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+    #     ports:
+    #         - 8088:80
+    #     depends_on:
+    #         - ach-db
+    #     environment:
+    #         - PMA_ARBITRARY=1
+    #         - PMA_HOST=ach-db-container
+    #         - PMA_USER=root
+    #         - PMA_PASSWORD=root
+    # phpredisadmin:
+    #     container_name: ach-phpredisadmin-container
+    #     image: erikdubbelboer/phpredisadmin
+    #     ports:
+    #         - 6379:80
+    #     depends_on:
+    #         - ach-redis
+    #     environment:
+    #         - REDIS_1_HOST=ach-redis-container
+    #         - REDIS_1_NAME=ach-redis-container
+    #         - REDIS_1_PORT=6379
+networks:
+  app-network:
+    driver: bridge
